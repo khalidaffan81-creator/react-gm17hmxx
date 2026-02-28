@@ -18,7 +18,7 @@ const ADMIN_EMAIL = "YOUR_GMAIL_HERE@gmail.com";
 
 // ── ACCESS CODE — share this with your 50 friends ────────────────────────────
 // Change this to any word/code you want, e.g. "neet2026" or "mission50"
-const ACCESS_CODE = "neetMAK";
+const ACCESS_CODE = "neet2026";
 const ACCESS_KEY  = "neet_mission_access_v1";
 
 const T = {
@@ -772,6 +772,101 @@ function AdminDashboard({ onClose }) {
   );
 }
 
+
+
+// ── ACCURACY EVOLUTION CHART ─────────────────────────────────────────────────
+function Evolution({ chapters }) {
+  const [sel, setSel] = useState([chapters[0]?.id, chapters[1]?.id].filter(Boolean));
+  const colors = [T.amber, T.blue, T.purple, T.green, T.red];
+  const selCh = chapters.filter(c => sel.includes(c.id));
+  const series = selCh.map((ch,i) => ({
+    id: ch.id,
+    name: ch.name.split(" ").slice(0,2).join(" "),
+    color: colors[i % colors.length],
+    data: getHistory(ch),
+  }));
+  return (
+    <div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+        {chapters.slice(0,8).map(ch => {
+          const on = sel.includes(ch.id);
+          const color = getGroupColor(ch.group);
+          return (
+            <button key={ch.id} onClick={()=>{
+              if(on) setSel(s=>s.filter(x=>x!==ch.id));
+              else if(sel.length<5) setSel(s=>[...s,ch.id]);
+            }} style={{
+              fontSize:10,padding:"4px 10px",borderRadius:6,border:"none",cursor:"pointer",
+              background:on?`${getGroupBg(ch.group)}`:`${T.bg2}`,
+              color:on?color:T.textMuted,
+              outline:`1px solid ${on?color:T.border}`,
+              transition:"all 0.15s",fontWeight:on?700:400,
+            }}>{ch.name.split(" ")[0]}</button>
+          );
+        })}
+        <span style={{fontSize:10,color:T.textDim,alignSelf:"center"}}>select up to 5</span>
+      </div>
+      <LineChartSVG series={series} width={520} height={150}/>
+      <div style={{display:"flex",gap:14,marginTop:8,flexWrap:"wrap"}}>
+        {selCh.map((ch,i)=>(
+          <div key={ch.id} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:T.textMuted}}>
+            <div style={{width:20,height:3,background:colors[i%colors.length],borderRadius:2}}/>
+            {ch.name.split(" ").slice(0,2).join(" ")}
+            <span style={{color:colors[i%colors.length],fontWeight:700}}>{ch.accuracy}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── SUBJECT RADAR BARS ────────────────────────────────────────────────────────
+function SubjectRadar({ chapters }) {
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {["Biology","Chemistry","Physics"].map(sub => {
+        const chs = chapters.filter(c=>c.subject===sub);
+        const avg = Math.round(chs.reduce((s,c)=>s+c.accuracy,0)/chs.length);
+        const danger = chs.filter(c=>c.group==="Q1").length;
+        const strong = chs.filter(c=>c.group==="Q4").length;
+        const color = SUBJECT_COLORS[sub];
+        // topic breakdown
+        const topics = [...new Set(chs.map(c=>c.topic))];
+        return (
+          <div key={sub}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:13,fontWeight:700,color}}>{sub}</span>
+              <div style={{display:"flex",gap:10,fontSize:11}}>
+                <span style={{color:T.red}}>⚡ {danger}</span>
+                <span style={{color:T.green}}>✅ {strong}</span>
+                <span style={{color,fontWeight:800}}>{avg}%</span>
+              </div>
+            </div>
+            {/* Main accuracy bar */}
+            <div style={{height:8,borderRadius:4,background:T.bg3,overflow:"hidden",marginBottom:6}}>
+              <div style={{height:"100%",width:`${avg}%`,background:`linear-gradient(90deg,${color}88,${color})`,borderRadius:4,transition:"width 0.6s"}}/>
+            </div>
+            {/* Topic mini bars */}
+            <div style={{display:"flex",gap:4}}>
+              {topics.map(topic => {
+                const topicChs = chs.filter(c=>c.topic===topic);
+                const topicAvg = Math.round(topicChs.reduce((s,c)=>s+c.accuracy,0)/topicChs.length);
+                return (
+                  <div key={topic} style={{flex:1,minWidth:0}}>
+                    <div style={{height:4,borderRadius:2,background:T.bg3,overflow:"hidden",marginBottom:3}}>
+                      <div style={{height:"100%",width:`${topicAvg}%`,background:topicAvg>65?T.green:topicAvg>50?T.amber:T.red,borderRadius:2}}/>
+                    </div>
+                    <div style={{fontSize:9,color:T.textDim,textAlign:"center",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{topic}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // MOBILE APP UI
@@ -1560,6 +1655,27 @@ export default function App() {
         {/* ── RIGHT COLUMN ── */}
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
 
+          {/* Accuracy Evolution Chart */}
+          <div style={{background:T.bg1,border:`1px solid ${T.border}`,borderRadius:18,padding:20,boxShadow:"0 4px 24px #00000044"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+              <div>
+                <div style={{fontSize:15,fontWeight:800,color:T.text,display:"flex",alignItems:"center",gap:8}}>
+                  <TrendingUp size={16} color={T.blue}/> Accuracy Evolution
+                </div>
+                <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>8-week rolling trend · compare chapters</div>
+              </div>
+            </div>
+            <Evolution chapters={top10}/>
+          </div>
+
+          {/* Subject breakdown with topic bars */}
+          <div style={{background:T.bg1,border:`1px solid ${T.border}`,borderRadius:18,padding:20,boxShadow:"0 4px 24px #00000044"}}>
+            <div style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+              <BarChart2 size={16} color={T.purple}/> Subject Breakdown
+            </div>
+            <SubjectRadar chapters={chapters}/>
+          </div>
+
           {/* Top 10 Priority list — with progress bars */}
           <div style={{background:T.bg1,border:`1px solid ${T.border}`,borderRadius:18,padding:20,boxShadow:"0 4px 24px #00000044"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
@@ -1612,25 +1728,6 @@ export default function App() {
             })}
           </div>
 
-          {/* Subject breakdown cards */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-            {["Biology","Chemistry","Physics"].map(sub=>{
-              const subChs = chapters.filter(c=>c.subject===sub);
-              const subAvg = Math.round(subChs.reduce((s,c)=>s+c.accuracy,0)/subChs.length);
-              const subDanger = subChs.filter(c=>c.group==="Q1").length;
-              const color = SUBJECT_COLORS[sub];
-              return (
-                <div key={sub} style={{padding:"16px",borderRadius:14,background:T.bg1,border:`1px solid ${color}33`,cursor:"pointer"}} onClick={()=>setSubject(s=>s===sub?"All":sub)}>
-                  <div style={{fontSize:11,color,fontWeight:700,marginBottom:2}}>{sub}</div>
-                  <div style={{fontSize:26,fontWeight:900,color,marginBottom:4}}>{subAvg}%</div>
-                  <div style={{height:5,borderRadius:3,background:T.bg3,overflow:"hidden",marginBottom:8}}>
-                    <div style={{height:"100%",width:`${subAvg}%`,background:color,borderRadius:3}}/>
-                  </div>
-                  <div style={{fontSize:11,color:T.textMuted}}><span style={{color:T.red,fontWeight:700}}>{subDanger}</span> danger · {subChs.length} chapters</div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
 
