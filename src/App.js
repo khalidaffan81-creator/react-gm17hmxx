@@ -873,107 +873,260 @@ function SubjectRadar({ chapters }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 // ── MOBILE HOME SCREEN ────────────────────────────────────────────────────────
+function SectionHeader({ emoji, title, sub }) {
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+      <div style={{fontSize:20}}>{emoji}</div>
+      <div>
+        <div style={{fontSize:15,fontWeight:800,color:T.text}}>{title}</div>
+        {sub && <div style={{fontSize:11,color:T.textMuted,marginTop:1}}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
 function MobileHome({ chapters, examDate, daysLeft, urgencyColor, onSetExamDate, onQuickLog, userName }) {
   const danger = chapters.filter(c=>c.group==="Q1").length;
   const avgAcc = Math.round(chapters.reduce((s,c)=>s+c.accuracy,0)/chapters.length);
   const strong = chapters.filter(c=>c.group==="Q4").length;
-  const top5 = [...chapters].sort((a,b)=>priorityScore(b)-priorityScore(a)).slice(0,5);
+  const top10 = [...chapters].sort((a,b)=>priorityScore(b)-priorityScore(a)).slice(0,10);
+  const [selCharts, setSelCharts] = useState([top10[0]?.id, top10[1]?.id].filter(Boolean));
+  const chartColors = [T.amber, T.blue, T.purple, T.green, T.red];
+  const selCh = top10.filter(c => selCharts.includes(c.id));
+  const series = selCh.map((ch,i) => ({
+    id: ch.id,
+    name: ch.name.split(" ")[0],
+    color: chartColors[i % chartColors.length],
+    data: getHistory(ch),
+  }));
 
   return (
-    <div style={{padding:"0 16px 100px"}}>
-      {/* Hero countdown card */}
-      <div onClick={onSetExamDate} style={{
-        margin:"16px 0 12px",borderRadius:20,padding:"22px 22px",cursor:"pointer",
-        background:`linear-gradient(135deg,${T.bg1} 0%,${T.bg2} 100%)`,
-        border:`1px solid ${daysLeft!==null?urgencyColor+"44":T.border}`,
-        position:"relative",overflow:"hidden",
-      }}>
-        <div style={{position:"absolute",top:-20,right:-20,width:140,height:140,borderRadius:"50%",
-          background:urgencyColor,opacity:0.05}}/>
-        <div style={{fontSize:12,color:T.textMuted,marginBottom:4}}>Hey {userName} 👋</div>
-        {daysLeft === null ? (
-          <div>
-            <div style={{fontSize:20,fontWeight:800,color:T.text}}>Set your NEET date</div>
-            <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>Tap to set exam date →</div>
-          </div>
-        ) : (
-          <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
+    <div style={{paddingBottom:100}}>
+
+      {/* ── HERO COUNTDOWN ───────────────────────────────── */}
+      <div style={{padding:"16px 16px 0"}}>
+        <div onClick={onSetExamDate} style={{
+          borderRadius:22,padding:"22px",cursor:"pointer",marginBottom:12,
+          background:`linear-gradient(135deg,${T.bg1},${T.bg2})`,
+          border:`1px solid ${daysLeft!==null?urgencyColor+"55":T.border}`,
+          position:"relative",overflow:"hidden",
+        }}>
+          <div style={{position:"absolute",top:-30,right:-30,width:160,height:160,borderRadius:"50%",background:urgencyColor,opacity:0.06}}/>
+          <div style={{fontSize:12,color:T.textMuted,marginBottom:6}}>Hey {userName} 👋</div>
+          {daysLeft===null ? (
             <div>
-              <div style={{fontSize:52,fontWeight:900,color:urgencyColor,lineHeight:1,letterSpacing:-2}}>{daysLeft}</div>
-              <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>days to NEET</div>
-              <div style={{fontSize:11,color:T.textDim,marginTop:2}}>
-                {new Date(examDate+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"})}
+              <div style={{fontSize:22,fontWeight:800,color:T.text}}>Set your NEET date</div>
+              <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>Tap to set →</div>
+            </div>
+          ) : (
+            <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
+              <div>
+                <div style={{fontSize:64,fontWeight:900,color:urgencyColor,lineHeight:1,letterSpacing:-3}}>{daysLeft}</div>
+                <div style={{fontSize:14,color:T.textMuted,marginTop:6}}>days to NEET</div>
+                <div style={{fontSize:11,color:T.textDim,marginTop:2}}>
+                  {new Date(examDate+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"})}
+                </div>
+              </div>
+              <div style={{textAlign:"right",paddingBottom:4}}>
+                <div style={{fontSize:13,color:urgencyColor,fontWeight:700,background:`${urgencyColor}18`,padding:"8px 14px",borderRadius:10,border:`1px solid ${urgencyColor}33`}}>
+                  {daysLeft<=30?"⚡ Final sprint":daysLeft<=60?"🔥 Consistent":"📅 On track"}
+                </div>
               </div>
             </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:11,color:T.textDim,marginBottom:6}}>Your status</div>
-              <div style={{fontSize:12,color:urgencyColor,fontWeight:700,background:`${urgencyColor}18`,padding:"6px 12px",borderRadius:8}}>
-                {daysLeft<=30?"⚡ Final sprint":daysLeft<=60?"🔥 Stay consistent":"📅 On track"}
-              </div>
+          )}
+          {/* Urgency bar at bottom */}
+          {daysLeft!==null && (
+            <div style={{position:"absolute",bottom:0,left:0,right:0,height:3,background:T.bg3}}>
+              <div style={{height:"100%",background:urgencyColor,width:`${Math.min(100,Math.max(0,(1-daysLeft/365)*100))}%`,borderRadius:2}}/>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick stats row */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
-        {[
-          {v:danger,l:"Danger",c:T.red,bg:T.redDim,icon:"⚡"},
-          {v:`${avgAcc}%`,l:"Avg Acc",c:T.amber,bg:T.amberDim,icon:"🎯"},
-          {v:strong,l:"Strong",c:T.green,bg:T.greenDim,icon:"✅"},
-        ].map(s=>(
-          <div key={s.l} style={{padding:"12px 10px",borderRadius:14,background:s.bg,border:`1px solid ${s.c}33`,textAlign:"center"}}>
-            <div style={{fontSize:18}}>{s.icon}</div>
-            <div style={{fontSize:20,fontWeight:800,color:s.c,marginTop:2}}>{s.v}</div>
-            <div style={{fontSize:10,color:T.textMuted,marginTop:1}}>{s.l}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick log CTA */}
-      <button onClick={onQuickLog} style={{
-        width:"100%",padding:"16px",borderRadius:16,border:"none",marginBottom:14,
-        background:`linear-gradient(135deg,${T.amber},${T.red})`,
-        color:"#000",fontSize:15,fontWeight:800,cursor:"pointer",
-        display:"flex",alignItems:"center",justifyContent:"center",gap:10,
-      }}>
-        <PenLine size={18}/> Log Today's Session
-      </button>
-
-      {/* Top 5 danger chapters */}
-      <div style={{marginBottom:6}}>
-        <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
-          <Flame size={14} color={T.red}/> Focus Right Now
+          )}
         </div>
-        {top5.map((ch,i)=>{
+
+        {/* Stats row */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+          {[
+            {v:danger,l:"Danger",c:T.red,bg:T.redDim,icon:"⚡"},
+            {v:`${avgAcc}%`,l:"Avg Acc",c:T.amber,bg:T.amberDim,icon:"🎯"},
+            {v:strong,l:"Strong",c:T.green,bg:T.greenDim,icon:"✅"},
+          ].map(s=>(
+            <div key={s.l} style={{padding:"14px 10px",borderRadius:16,background:s.bg,border:`1px solid ${s.c}33`,textAlign:"center"}}>
+              <div style={{fontSize:20}}>{s.icon}</div>
+              <div style={{fontSize:22,fontWeight:900,color:s.c,marginTop:3,letterSpacing:-0.5}}>{s.v}</div>
+              <div style={{fontSize:10,color:T.textMuted,marginTop:2}}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Log CTA */}
+        <button onClick={onQuickLog} style={{
+          width:"100%",padding:"17px",borderRadius:16,border:"none",marginBottom:20,
+          background:`linear-gradient(135deg,${T.amber},${T.red})`,
+          color:"#000",fontSize:16,fontWeight:800,cursor:"pointer",
+          display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+          boxShadow:`0 6px 20px ${T.amber}44`,
+        }}>
+          <PenLine size={20}/> Log Today's Session
+        </button>
+      </div>
+
+      {/* ── DIVIDER ──────────────────────────────────────── */}
+      <div style={{height:1,background:T.border,margin:"0 0 20px"}}/>
+
+      {/* ── SECTION 1: FOCUS LIST TOP 10 ─────────────────── */}
+      <div style={{padding:"0 16px",marginBottom:24}}>
+        <SectionHeader emoji="🔥" title="Focus List — Top 10" sub="Highest priority chapters right now"/>
+        {top10.map((ch,i)=>{
           const color = getGroupColor(ch.group);
           const score = priorityScore(ch);
           return (
             <div key={ch.id} style={{
-              display:"flex",alignItems:"center",gap:12,padding:"12px 14px",
-              background:T.bg1,border:`1px solid ${T.border}`,
-              borderRadius:12,marginBottom:8,
+              display:"flex",alignItems:"center",gap:12,padding:"14px 16px",
+              background:T.bg1,border:`1px solid ${i<3?color+"55":T.border}`,
+              borderRadius:14,marginBottom:8,
+              boxShadow:i<3?`0 2px 12px ${color}18`:"none",
             }}>
-              <div style={{width:28,height:28,borderRadius:8,background:i<3?color:T.bg3,
+              <div style={{
+                width:32,height:32,borderRadius:10,flexShrink:0,
                 display:"flex",alignItems:"center",justifyContent:"center",
-                fontSize:12,fontWeight:800,color:i<3?"#000":T.textMuted,flexShrink:0}}>
-                {i+1}
-              </div>
+                fontSize:14,fontWeight:900,
+                background:i<3?color:T.bg3,
+                color:i<3?"#000":T.textMuted,
+              }}>{i+1}</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,color:T.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{ch.name}</div>
-                <div style={{display:"flex",gap:8,marginTop:3,alignItems:"center"}}>
-                  <span style={{fontSize:10,color:SUBJECT_COLORS[ch.subject]}}>{ch.subject}</span>
-                  <div style={{flex:1,height:4,borderRadius:2,background:T.bg3,overflow:"hidden",maxWidth:80}}>
-                    <div style={{width:`${ch.accuracy}%`,height:"100%",background:ch.accuracy>65?T.green:ch.accuracy>50?T.amber:T.red,borderRadius:2}}/>
+                <div style={{fontSize:14,fontWeight:700,color:T.text,marginBottom:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{ch.name}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:11,color:SUBJECT_COLORS[ch.subject],fontWeight:600}}>{ch.subject}</span>
+                  <div style={{flex:1,height:5,borderRadius:3,background:T.bg3,overflow:"hidden",maxWidth:100}}>
+                    <div style={{height:"100%",width:`${ch.accuracy}%`,background:ch.accuracy>65?T.green:ch.accuracy>50?T.amber:T.red,borderRadius:3}}/>
                   </div>
-                  <span style={{fontSize:10,color:T.textMuted}}>{ch.accuracy}%</span>
+                  <span style={{fontSize:11,color:T.textMuted}}>{ch.accuracy}%</span>
+                  <span style={{fontSize:10,padding:"2px 6px",borderRadius:4,background:getGroupBg(ch.group),color,fontWeight:700}}>{ch.errors}err</span>
                 </div>
               </div>
-              <div style={{fontSize:15,fontWeight:800,color,flexShrink:0}}>{score.toFixed(1)}</div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:20,fontWeight:900,color,lineHeight:1}}>{score.toFixed(1)}</div>
+                <div style={{fontSize:9,color:T.textDim,marginTop:2}}>score</div>
+              </div>
             </div>
           );
         })}
       </div>
+
+      <div style={{height:1,background:T.border,margin:"0 0 20px"}}/>
+
+      {/* ── SECTION 2: PRIORITY MATRIX ───────────────────── */}
+      <div style={{padding:"0 16px",marginBottom:24}}>
+        <SectionHeader emoji="🎯" title="Priority Matrix" sub="Tap a dot to see chapter detail"/>
+        <div style={{background:T.bg1,border:`1px solid ${T.border}`,borderRadius:18,padding:16}}>
+          <PriorityMatrix chapters={chapters} onSelect={()=>{}} selected={null} subject="All"/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
+            {[["Q1","⚡","Danger",T.redDim],["Q2","🔄","Maintain",T.amberDim],["Q3","📉","Low",T.blueDim],["Q4","✅","Strong",T.greenDim]].map(([q,emoji,label,bg])=>{
+              const count = chapters.filter(c=>c.group===q).length;
+              const color = getGroupColor(q);
+              return (
+                <div key={q} style={{padding:"12px",background:bg,borderRadius:12,border:`1px solid ${color}33`,display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:18}}>{emoji}</span>
+                  <div>
+                    <div style={{fontSize:22,fontWeight:900,color,lineHeight:1}}>{count}</div>
+                    <div style={{fontSize:11,color:T.textMuted}}>{label}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div style={{height:1,background:T.border,margin:"0 0 20px"}}/>
+
+      {/* ── SECTION 3: SUBJECT BREAKDOWN ─────────────────── */}
+      <div style={{padding:"0 16px",marginBottom:24}}>
+        <SectionHeader emoji="📊" title="Subject Breakdown" sub="Accuracy by subject & topic"/>
+        <div style={{background:T.bg1,border:`1px solid ${T.border}`,borderRadius:18,padding:18}}>
+          {["Biology","Chemistry","Physics"].map(sub=>{
+            const chs = chapters.filter(c=>c.subject===sub);
+            const avg = Math.round(chs.reduce((s,c)=>s+c.accuracy,0)/chs.length);
+            const danger = chs.filter(c=>c.group==="Q1").length;
+            const strong = chs.filter(c=>c.group==="Q4").length;
+            const color = SUBJECT_COLORS[sub];
+            const topics = [...new Set(chs.map(c=>c.topic))];
+            return (
+              <div key={sub} style={{marginBottom:22}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <span style={{fontSize:15,fontWeight:800,color}}>{sub}</span>
+                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                    <span style={{fontSize:11,color:T.red}}>⚡{danger}</span>
+                    <span style={{fontSize:11,color:T.green}}>✅{strong}</span>
+                    <span style={{fontSize:18,fontWeight:900,color}}>{avg}%</span>
+                  </div>
+                </div>
+                {/* Main bar */}
+                <div style={{height:10,borderRadius:5,background:T.bg3,overflow:"hidden",marginBottom:10}}>
+                  <div style={{height:"100%",width:`${avg}%`,background:`linear-gradient(90deg,${color}88,${color})`,borderRadius:5,transition:"width 0.6s"}}/>
+                </div>
+                {/* Topic bars */}
+                <div style={{display:"flex",gap:6}}>
+                  {topics.map(topic=>{
+                    const tChs = chs.filter(c=>c.topic===topic);
+                    const tAvg = Math.round(tChs.reduce((s,c)=>s+c.accuracy,0)/tChs.length);
+                    const tCol = tAvg>65?T.green:tAvg>50?T.amber:T.red;
+                    return (
+                      <div key={topic} style={{flex:1,textAlign:"center"}}>
+                        <div style={{height:6,borderRadius:3,background:T.bg3,overflow:"hidden",marginBottom:4}}>
+                          <div style={{height:"100%",width:`${tAvg}%`,background:tCol,borderRadius:3}}/>
+                        </div>
+                        <div style={{fontSize:9,color:T.textDim,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{topic}</div>
+                        <div style={{fontSize:10,fontWeight:700,color:tCol}}>{tAvg}%</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{height:1,background:T.border,margin:"0 0 20px"}}/>
+
+      {/* ── SECTION 4: ACCURACY EVOLUTION ────────────────── */}
+      <div style={{padding:"0 16px",marginBottom:24}}>
+        <SectionHeader emoji="📈" title="Accuracy Evolution" sub="8-week trend · tap to compare"/>
+        <div style={{background:T.bg1,border:`1px solid ${T.border}`,borderRadius:18,padding:18}}>
+          {/* Chapter selector */}
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+            {top10.slice(0,6).map(ch=>{
+              const on = selCharts.includes(ch.id);
+              const color = getGroupColor(ch.group);
+              return (
+                <button key={ch.id} onClick={()=>{
+                  if(on) setSelCharts(s=>s.filter(x=>x!==ch.id));
+                  else if(selCharts.length<5) setSelCharts(s=>[...s,ch.id]);
+                }} style={{
+                  padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,
+                  background:on?getGroupBg(ch.group):"transparent",
+                  color:on?color:T.textMuted,
+                  outline:`1px solid ${on?color:T.border}`,
+                  fontWeight:on?700:400,
+                }}>{ch.name.split(" ")[0]}</button>
+              );
+            })}
+          </div>
+          {/* Chart — full width */}
+          <LineChartSVG series={series} width={340} height={160}/>
+          {/* Legend */}
+          <div style={{display:"flex",gap:12,marginTop:10,flexWrap:"wrap"}}>
+            {selCh.map((ch,i)=>(
+              <div key={ch.id} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:T.textMuted}}>
+                <div style={{width:18,height:3,background:chartColors[i%chartColors.length],borderRadius:2}}/>
+                {ch.name.split(" ")[0]}
+                <span style={{color:chartColors[i%chartColors.length],fontWeight:700}}>{ch.accuracy}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
