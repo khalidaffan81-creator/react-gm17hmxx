@@ -16,6 +16,11 @@ function useIsMobile() {
 // ── YOUR ADMIN EMAIL (change this to your Gmail) ─────────────────────────────
 const ADMIN_EMAIL = "YOUR_GMAIL_HERE@gmail.com";
 
+// ── ACCESS CODE — share this with your 50 friends ────────────────────────────
+// Change this to any word/code you want, e.g. "neet2026" or "mission50"
+const ACCESS_CODE = "neetMAK";
+const ACCESS_KEY  = "neet_mission_access_v1";
+
 const T = {
   bg0:"#070B14",bg1:"#0D1526",bg2:"#121C32",bg3:"#192541",
   border:"#1E2D4A",borderHi:"#2A3F6A",
@@ -407,6 +412,107 @@ function ExamDateModal({ current, onSave, onClose }) {
 }
 
 // ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
+
+// ── ACCESS GATE ───────────────────────────────────────────────────────────────
+// Shows a code entry screen before anything else. Free alternative to Vercel's
+// $150/month password protection.
+function AccessGate({ onUnlock }) {
+  const [val, setVal]     = useState("");
+  const [shake, setShake] = useState(false);
+  const [show, setShow]   = useState(false);
+
+  function attempt() {
+    if (val.trim().toLowerCase() === ACCESS_CODE.toLowerCase()) {
+      localStorage.setItem(ACCESS_KEY, "1");
+      onUnlock();
+    } else {
+      setShake(true);
+      setTimeout(() => setShake(false), 600);
+      setVal("");
+    }
+  }
+
+  return (
+    <div style={{minHeight:"100vh",background:T.bg0,display:"flex",alignItems:"center",
+      justifyContent:"center",padding:20,
+      backgroundImage:"radial-gradient(ellipse at 5% 0%,#0F2040,transparent 50%),radial-gradient(ellipse at 95% 100%,#1A0820,transparent 50%)"}}>
+      <div style={{width:"100%",maxWidth:380,textAlign:"center"}}>
+        {/* Logo */}
+        <div style={{width:64,height:64,borderRadius:18,
+          background:`linear-gradient(135deg,${T.red},${T.amber})`,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          margin:"0 auto 20px",boxShadow:`0 0 32px ${T.amber}44`}}>
+          <Zap size={30} color="#000"/>
+        </div>
+        <div style={{fontSize:28,fontWeight:900,color:T.text,marginBottom:6,letterSpacing:-0.5}}>NEET Mission</div>
+        <div style={{fontSize:13,color:T.textMuted,marginBottom:36}}>Revision Command Centre · Beta</div>
+
+        {/* Card */}
+        <div style={{
+          background:T.bg1,border:`1px solid ${T.border}`,
+          borderRadius:20,padding:"32px 28px",
+          boxShadow:"0 24px 60px #000C",
+          animation: shake ? "shake 0.5s ease" : "none",
+        }}>
+          <div style={{fontSize:32,marginBottom:10}}>🔐</div>
+          <div style={{fontSize:16,fontWeight:800,color:T.text,marginBottom:6}}>Enter Access Code</div>
+          <div style={{fontSize:13,color:T.textMuted,marginBottom:24,lineHeight:1.6}}>
+            This is a private beta.<br/>Ask the creator for the access code.
+          </div>
+
+          {/* Input */}
+          <div style={{position:"relative",marginBottom:14}}>
+            <input
+              type={show?"text":"password"}
+              value={val}
+              onChange={e=>setVal(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&attempt()}
+              placeholder="Enter code…"
+              autoFocus
+              style={{
+                width:"100%",padding:"14px 44px 14px 16px",
+                borderRadius:12,border:`1px solid ${val?T.amber:T.border}`,
+                background:T.bg2,color:T.text,fontSize:16,
+                outline:"none",letterSpacing:show?1:3,
+                boxSizing:"border-box",
+                transition:"border-color 0.2s",
+              }}
+            />
+            <button onClick={()=>setShow(s=>!s)} style={{
+              position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",
+              background:"none",border:"none",cursor:"pointer",color:T.textMuted,fontSize:16,padding:4,
+            }}>{show?"🙈":"👁"}</button>
+          </div>
+
+          <button onClick={attempt} style={{
+            width:"100%",padding:"14px",borderRadius:12,border:"none",
+            background:`linear-gradient(135deg,${T.amber},${T.red})`,
+            color:"#000",fontSize:15,fontWeight:800,cursor:"pointer",
+            boxShadow:`0 4px 20px ${T.amber}44`,
+            transition:"transform 0.15s, box-shadow 0.15s",
+          }}>
+            Unlock →
+          </button>
+
+          <div style={{fontSize:11,color:T.textDim,marginTop:18}}>
+            Only shared with invited students · Not public
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes shake {
+          0%,100%{transform:translateX(0)}
+          20%{transform:translateX(-10px)}
+          40%{transform:translateX(10px)}
+          60%{transform:translateX(-8px)}
+          80%{transform:translateX(8px)}
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function LoginScreen() {
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
@@ -1161,6 +1267,13 @@ export default function App() {
   const avgAcc = Math.round(chapters.reduce((s,c)=>s+c.accuracy,0)/chapters.length);
 
   const isMobile = useIsMobile();
+
+  // ── Access gate check ──
+  const [unlocked, setUnlocked] = useState(() => {
+    try { return localStorage.getItem(ACCESS_KEY) === "1"; } catch(e) { return false; }
+  });
+
+  if (!unlocked) return <AccessGate onUnlock={() => setUnlocked(true)} />;
 
   if (authLoading) return (
     <div style={{minHeight:"100vh",background:T.bg0,display:"flex",alignItems:"center",justifyContent:"center"}}>
