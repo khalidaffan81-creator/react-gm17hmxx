@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Zap, TrendingUp, AlertTriangle, CheckCircle2, Clock, Target, Download, Upload, Calendar, X, RefreshCw, Star, Plus, Edit3, Save, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 const T = {
   bg0:"#070B14",bg1:"#0D1526",bg2:"#121C32",bg3:"#192541",
@@ -1051,6 +1052,7 @@ export default function App() {
           div[style*="grid-template-columns: minmax(320px"]{grid-template-columns:1fr!important}
         }
       `}</style>
+      <SpeedInsights />
     </div>
   );
 }
