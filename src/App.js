@@ -548,13 +548,22 @@ function AdminDashboard({ onClose }) {
   const [loading,setLoading]=useState(true);
   const [tab,setTab]=useState("overview");
   const [selectedUser,setSelectedUser]=useState(null);
+  const [rlsError,setRlsError]=useState(false);
 
   useEffect(()=>{ loadData(); },[]);
 
   async function loadData() {
     setLoading(true);
-    const { data: profiles } = await supabase.from("profiles").select("*").order("last_seen",{ascending:false});
-    const { data: allChapters } = await supabase.from("chapter_data").select("*");
+    setRlsError(false);
+    const { data: profiles, error: profilesError } = await supabase.from("profiles").select("*").order("last_seen",{ascending:false});
+    const { data: allChapters, error: chaptersError } = await supabase.from("chapter_data").select("*");
+    
+    if (profilesError) console.error("profiles fetch error:", profilesError);
+    if (chaptersError) console.error("chapter_data fetch error:", chaptersError);
+    
+    // Detect RLS blocking: if we got data but only 1 row (our own), RLS is blocking others
+    if (profiles && profiles.length <= 1) setRlsError(true);
+    
     if (profiles) {
       const enriched = profiles.map(p => ({...p, chapters: allChapters?.filter(c=>c.user_id===p.id) || []}));
       setUsers(enriched);
@@ -601,6 +610,18 @@ function AdminDashboard({ onClose }) {
           <div style={{textAlign:"center",padding:"60px 0",color:T.textMuted}}>Loading data…</div>
         ) : (
           <>
+            {rlsError && (
+              <div style={{background:T.redDim,border:`1px solid ${T.red}55`,borderRadius:10,padding:"14px 18px",marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:700,color:T.red,marginBottom:6}}>⚠️ Row Level Security is blocking admin access</div>
+                <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7}}>
+                  You're only seeing your own data. To fix this, go to your <b style={{color:T.text}}>Supabase Dashboard</b> and add these RLS policies:<br/>
+                  <span style={{color:T.amber}}>Table: profiles</span> → New Policy → SELECT → Using expression:<br/>
+                  <code style={{background:T.bg3,padding:"2px 8px",borderRadius:4,color:T.green,fontSize:11}}>auth.jwt() -&gt;&gt; 'email' = 'khalidaffan81@gmail.com'</code><br/>
+                  <span style={{color:T.amber}}>Table: chapter_data</span> → same expression.<br/>
+                  Also make sure your <b style={{color:T.text}}>profiles</b> table has a <b style={{color:T.text}}>created_at</b> column with default <code style={{background:T.bg3,padding:"2px 4px",borderRadius:3,color:T.green,fontSize:11}}>now()</code>.
+                </div>
+              </div>
+            )}
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:20}}>
               {[
                 {l:"Total Users",v:users.length,c:T.blue,icon:<Users size={16}/>},
@@ -1189,7 +1210,7 @@ function MobileProfile({ session, examDate, onSetExamDate, onSignOut, isAdmin, o
 }
 
 // ── MOBILE SHELL ─────────────────────────────────────────────────────────────
-function MobileApp({ session, chapters, setChapters, handleChaptersUpdate, examDate, daysLeft, urgencyColor, saveExamDate, setExamDateOpen, setQuickLogOpen, handleSignOut, isAdmin, setAdminOpen, savingChapters, adminOpen, quickLogOpen, examDateOpen, onToggleLayout }) {
+function MobileApp({ session, chapters, setChapters, handleChaptersUpdate, examDate, daysLeft, urgencyColor, saveExamDate, setExamDateOpen, setQuickLogOpen, handleSignOut, isAdmin, setAdminOpen, savingChapters, adminOpen, quickLogOpen, examDateOpen }) {
   const [tab, setTab] = useState("home");
   const userName = session?.user?.user_metadata?.full_name?.split(" ")[0] || "Student";
 
@@ -1215,9 +1236,6 @@ function MobileApp({ session, chapters, setChapters, handleChaptersUpdate, examD
           <span style={{fontSize:13,fontWeight:800,letterSpacing:0.5}}>NEET MISSION</span>
         </div>
         {savingChapters && <span style={{fontSize:10,color:T.amber}}>Saving…</span>}
-        <button onClick={onToggleLayout} title="Switch to desktop view" style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:`${T.bg2}`,color:T.textMuted,cursor:"pointer",fontSize:11,fontWeight:600}}>
-          🖥 Desktop
-        </button>
       </div>
 
       {/* Page content — snap scroll only on home tab */}
@@ -1350,12 +1368,16 @@ export default function App() {
   }, [session?.user?.id]);
 
   async function updateLastSeen() {
-    await supabase.from("profiles").upsert({
+    const now = new Date().toISOString();
+    // Insert with created_at on first signup, update last_seen on every login
+    const { error } = await supabase.from("profiles").upsert({
       id: session.user.id,
       email: session.user.email,
       name: session.user.user_metadata?.full_name || "",
-      last_seen: new Date().toISOString(),
+      last_seen: now,
+      created_at: now,
     }, { onConflict: "id" });
+    if (error) console.error("updateLastSeen error:", error);
   }
 
   async function loadUserData() {
@@ -1407,9 +1429,7 @@ export default function App() {
   const danger = chapters.filter(c=>c.group==="Q1").length;
   const avgAcc = Math.round(chapters.reduce((s,c)=>s+c.accuracy,0)/chapters.length);
 
-  const isMobileAuto = useIsMobile();
-  const [layoutOverride, setLayoutOverride] = useState(null); // null = auto, "mobile" or "desktop"
-  const isMobile = layoutOverride === null ? isMobileAuto : layoutOverride === "mobile";
+  const isMobile = useIsMobile();
 
   const [unlocked, setUnlocked] = useState(() => {
     try { return localStorage.getItem(ACCESS_KEY) === "1"; } catch(e) { return false; }
@@ -1446,7 +1466,6 @@ export default function App() {
       adminOpen={adminOpen}
       quickLogOpen={quickLogOpen}
       examDateOpen={examDateOpen}
-      onToggleLayout={()=>setLayoutOverride("desktop")}
     />
   );
 
@@ -1504,9 +1523,6 @@ export default function App() {
             <div style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue},${T.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#fff"}}>
               {userName[0]?.toUpperCase()}
             </div>
-            <button onClick={()=>setLayoutOverride("mobile")} title="Toggle layout" style={{padding:"7px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",color:T.textMuted,cursor:"pointer",display:"flex",alignItems:"center",gap:5,fontSize:11,fontWeight:600}}>
-              📱 Mobile View
-            </button>
             <button onClick={handleSignOut} title="Sign out" style={{padding:"7px",borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",color:T.textMuted,cursor:"pointer",display:"flex",alignItems:"center"}}>
               <LogOut size={14}/>
             </button>
