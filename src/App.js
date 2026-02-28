@@ -721,6 +721,91 @@ function ImportModal({ onImport, onClose }) {
 
 // ── MAIN APP ─────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "neet_mission_chapters_v2";
+const EXAM_DATE_KEY = "neet_mission_exam_date";
+
+function calcDaysLeft(dateStr) {
+  if (!dateStr) return null;
+  const exam = new Date(dateStr);
+  exam.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diff = Math.ceil((exam - today) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+
+function getUrgencyColor(days) {
+  if (days === null) return T.textDim;
+  if (days <= 30) return T.red;
+  if (days <= 60) return T.amber;
+  return T.green;
+}
+
+// ── EXAM DATE PICKER MODAL ───────────────────────────────────────────────────
+function ExamDateModal({ current, onSave, onClose }) {
+  const [val, setVal] = useState(current || "");
+  return (
+    <div style={{position:"fixed",inset:0,background:"#000000BB",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+      onClick={onClose}>
+      <div style={{background:T.bg1,border:`1px solid ${T.borderHi}`,borderRadius:16,padding:28,width:"100%",maxWidth:380,boxShadow:"0 32px 80px #000E"}}
+        onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+          <div style={{width:36,height:36,borderRadius:9,background:`linear-gradient(135deg,${T.amber},${T.red})`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <Calendar size={18} color="#000"/>
+          </div>
+          <div>
+            <div style={{fontSize:15,fontWeight:700,color:T.text}}>Set NEET Exam Date</div>
+            <div style={{fontSize:11,color:T.textMuted}}>Countdown updates automatically every day</div>
+          </div>
+        </div>
+
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:11,color:T.textMuted,marginBottom:8}}>Select your exam date:</div>
+          <input
+            type="date"
+            value={val}
+            min={new Date().toISOString().split("T")[0]}
+            onChange={e=>setVal(e.target.value)}
+            style={{
+              width:"100%",padding:"12px 14px",borderRadius:8,
+              border:`1px solid ${val?T.amber:T.border}`,
+              background:T.bg2,color:T.text,fontSize:15,
+              outline:"none",cursor:"pointer",
+              colorScheme:"dark",
+            }}
+          />
+        </div>
+
+        {val && (()=>{
+          const days = calcDaysLeft(val);
+          const col = getUrgencyColor(days);
+          const msg = days < 0 ? "Exam date has passed!" :
+                      days === 0 ? "🎯 Exam is TODAY!" :
+                      days <= 30 ? "⚡ Final sprint! Push hard every day." :
+                      days <= 60 ? "🔥 Two months left. Stay consistent." :
+                      "📅 Good — use this time strategically.";
+          return (
+            <div style={{padding:"12px 16px",borderRadius:8,background:getGroupBg("Q1"),border:`1px solid ${col}44`,marginBottom:16,textAlign:"center"}}>
+              <div style={{fontSize:32,fontWeight:800,color:col,letterSpacing:-1}}>{days < 0 ? "—" : days}</div>
+              <div style={{fontSize:12,color:T.textMuted}}>days remaining</div>
+              <div style={{fontSize:11,color:col,marginTop:6}}>{msg}</div>
+            </div>
+          );
+        })()}
+
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>{onSave(val);onClose();}} disabled={!val} style={{
+            flex:1,padding:"11px",borderRadius:8,border:"none",
+            background:val?T.amber:"transparent",
+            color:val?"#000":T.textDim,
+            fontWeight:700,fontSize:13,cursor:val?"pointer":"not-allowed",
+            outline:!val?`1px solid ${T.border}`:"none",
+          }}>Set Date</button>
+          <button onClick={onClose} style={{padding:"11px 16px",borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",color:T.textMuted,cursor:"pointer"}}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   // Load from localStorage on first render
@@ -739,6 +824,20 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chapters)); } catch(e) {}
   }, [chapters]);
+
+  // Exam date — persisted in localStorage
+  const [examDate, setExamDate] = useState(() => {
+    try { return localStorage.getItem(EXAM_DATE_KEY) || ""; } catch(e) { return ""; }
+  });
+  const [examDateOpen, setExamDateOpen] = useState(false);
+
+  function saveExamDate(d) {
+    setExamDate(d);
+    try { localStorage.setItem(EXAM_DATE_KEY, d); } catch(e) {}
+  }
+
+  const daysLeft = calcDaysLeft(examDate);
+  const urgencyColor = getUrgencyColor(daysLeft);
 
   const [subject, setSubject] = useState("All");
   const [selected, setSelected] = useState(null);
@@ -845,9 +944,29 @@ export default function App() {
           </div>
         ))}
         <div style={{flex:1}}/>
-        <div style={{fontSize:11,color:T.textDim}}>
-          Week 26 · NEET 2026 · <span style={{color:T.amber}}>87 days left</span>
-        </div>
+        {/* Exam date countdown button */}
+        <button onClick={()=>setExamDateOpen(true)} style={{
+          display:"flex",alignItems:"center",gap:10,padding:"7px 14px",
+          background:T.bg1,borderRadius:8,border:`1px solid ${daysLeft!==null?urgencyColor+"55":T.border}`,
+          cursor:"pointer",transition:"all 0.2s",
+        }}>
+          <Calendar size={14} color={urgencyColor}/>
+          {daysLeft === null ? (
+            <span style={{fontSize:11,color:T.textDim}}>📅 Set exam date →</span>
+          ) : daysLeft < 0 ? (
+            <span style={{fontSize:11,color:T.red}}>Exam passed — update?</span>
+          ) : (
+            <>
+              <span style={{fontSize:20,fontWeight:800,color:urgencyColor,lineHeight:1}}>{daysLeft}</span>
+              <div style={{textAlign:"left"}}>
+                <div style={{fontSize:10,color:T.textMuted,lineHeight:1.3}}>days to NEET</div>
+                <div style={{fontSize:9,color:T.textDim,lineHeight:1.3}}>
+                  {new Date(examDate+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}
+                </div>
+              </div>
+            </>
+          )}
+        </button>
       </div>
 
       {/* MAIN GRID */}
@@ -906,6 +1025,11 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* EXAM DATE MODAL */}
+      {examDateOpen && (
+        <ExamDateModal current={examDate} onSave={saveExamDate} onClose={()=>setExamDateOpen(false)}/>
+      )}
 
       {/* QUICK LOG MODAL */}
       {quickLogOpen && (
