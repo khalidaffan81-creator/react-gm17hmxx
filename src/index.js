@@ -1,3 +1,5 @@
+import { injectSpeedInsights } from '@vercel/speed-insights';
+injectSpeedInsights();
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
