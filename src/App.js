@@ -14,11 +14,11 @@ function useIsMobile() {
 }
 
 // ── YOUR ADMIN EMAIL (change this to your Gmail) ─────────────────────────────
-const ADMIN_EMAIL = "YOUR_GMAIL_HERE@gmail.com";
+const ADMIN_EMAIL = "khalidaffan81@gmail.com";
 
 // ── ACCESS CODE — share this with your 50 friends ────────────────────────────
 // Change this to any word/code you want, e.g. "neet2026" or "mission50"
-const ACCESS_CODE = "neet2026";
+const ACCESS_CODE = "neetMAK";
 const ACCESS_KEY  = "neet_mission_access_v1";
 
 const T = {
