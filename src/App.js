@@ -1189,7 +1189,7 @@ function MobileProfile({ session, examDate, onSetExamDate, onSignOut, isAdmin, o
 }
 
 // ── MOBILE SHELL ─────────────────────────────────────────────────────────────
-function MobileApp({ session, chapters, setChapters, handleChaptersUpdate, examDate, daysLeft, urgencyColor, saveExamDate, setExamDateOpen, setQuickLogOpen, handleSignOut, isAdmin, setAdminOpen, savingChapters, adminOpen, quickLogOpen, examDateOpen }) {
+function MobileApp({ session, chapters, setChapters, handleChaptersUpdate, examDate, daysLeft, urgencyColor, saveExamDate, setExamDateOpen, setQuickLogOpen, handleSignOut, isAdmin, setAdminOpen, savingChapters, adminOpen, quickLogOpen, examDateOpen, onToggleLayout }) {
   const [tab, setTab] = useState("home");
   const userName = session?.user?.user_metadata?.full_name?.split(" ")[0] || "Student";
 
@@ -1215,6 +1215,9 @@ function MobileApp({ session, chapters, setChapters, handleChaptersUpdate, examD
           <span style={{fontSize:13,fontWeight:800,letterSpacing:0.5}}>NEET MISSION</span>
         </div>
         {savingChapters && <span style={{fontSize:10,color:T.amber}}>Saving…</span>}
+        <button onClick={onToggleLayout} title="Switch to desktop view" style={{padding:"5px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:`${T.bg2}`,color:T.textMuted,cursor:"pointer",fontSize:11,fontWeight:600}}>
+          🖥 Desktop
+        </button>
       </div>
 
       {/* Page content — snap scroll only on home tab */}
@@ -1404,7 +1407,9 @@ export default function App() {
   const danger = chapters.filter(c=>c.group==="Q1").length;
   const avgAcc = Math.round(chapters.reduce((s,c)=>s+c.accuracy,0)/chapters.length);
 
-  const isMobile = useIsMobile();
+  const isMobileAuto = useIsMobile();
+  const [layoutOverride, setLayoutOverride] = useState(null); // null = auto, "mobile" or "desktop"
+  const isMobile = layoutOverride === null ? isMobileAuto : layoutOverride === "mobile";
 
   const [unlocked, setUnlocked] = useState(() => {
     try { return localStorage.getItem(ACCESS_KEY) === "1"; } catch(e) { return false; }
@@ -1441,6 +1446,7 @@ export default function App() {
       adminOpen={adminOpen}
       quickLogOpen={quickLogOpen}
       examDateOpen={examDateOpen}
+      onToggleLayout={()=>setLayoutOverride("desktop")}
     />
   );
 
@@ -1498,6 +1504,9 @@ export default function App() {
             <div style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue},${T.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#fff"}}>
               {userName[0]?.toUpperCase()}
             </div>
+            <button onClick={()=>setLayoutOverride("mobile")} title="Toggle layout" style={{padding:"7px 10px",borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",color:T.textMuted,cursor:"pointer",display:"flex",alignItems:"center",gap:5,fontSize:11,fontWeight:600}}>
+              📱 Mobile View
+            </button>
             <button onClick={handleSignOut} title="Sign out" style={{padding:"7px",borderRadius:8,border:`1px solid ${T.border}`,background:"transparent",color:T.textMuted,cursor:"pointer",display:"flex",alignItems:"center"}}>
               <LogOut size={14}/>
             </button>
